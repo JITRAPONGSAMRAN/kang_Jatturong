@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>คำนวณค่าแรงรายวัน</title>
+<title>คำนวณค่าแรง Mr.ซันจิ</title>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const dailyWage = 600;
@@ -18,8 +18,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const calcBtn = document.getElementById("calcBtn");
     const result = document.getElementById("result");
 
-    const holidays = ["2025-06-20", "2025-06-28", "2025-07-04"]; // ตัวอย่างวันหยุดพิเศษ
-
     function generateTable(startDay, endDay, month, year) {
         table.innerHTML = "";
         for (let day = startDay; day <= endDay; day++) {
@@ -27,15 +25,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const date = new Date(dateStr);
             if (isNaN(date)) continue;
 
-            const isSunday = date.getDay() === 0;
-            const isHoliday = holidays.includes(dateStr);
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${dateStr}</td>
                 <td><input type="number" min="0" max="8" value="8"></td>
                 <td><input type="number" min="0" value="0"></td>
+                <td><input type="checkbox"></td>
             `;
-            if (isSunday || isHoliday) row.style.backgroundColor = "#f8d7da";
             table.appendChild(row);
         }
     }
@@ -53,21 +49,23 @@ document.addEventListener("DOMContentLoaded", () => {
     periodSelect.onchange = updateTable;
 
     calcBtn.onclick = () => {
-        let totalNormal = 0, totalOT = 0;
+        let totalNormal = 0, totalOT1_5 = 0, totalOT2 = 0;
 
         for (let row of table.rows) {
             const dateStr = row.cells[0].innerText;
-            const date = new Date(dateStr);
             const normalHours = parseFloat(row.cells[1].querySelector("input").value) || 0;
             const otHours = parseFloat(row.cells[2].querySelector("input").value) || 0;
-            const isSunday = date.getDay() === 0;
-            const isHoliday = holidays.includes(dateStr);
+            const isDoubleRate = row.cells[3].querySelector("input").checked;
 
             const wageNormal = (normalHours / hoursPerDay) * dailyWage;
-            const wageOT = otHours * hourlyWage * (isSunday || isHoliday ? sundayRate : otRate);
+            const wageOT = otHours * hourlyWage * (isDoubleRate ? sundayRate : otRate);
 
             totalNormal += wageNormal;
-            totalOT += wageOT;
+            if (isDoubleRate) {
+                totalOT2 += otHours * hourlyWage * sundayRate;
+            } else {
+                totalOT1_5 += otHours * hourlyWage * otRate;
+            }
         }
 
         const [year, month] = monthSelect.value.split("-").map(Number);
@@ -79,10 +77,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         result.innerHTML = `
-            <h3>สรุปเงินเดือน (รับวันที่ ${payDate})</h3>
+            <h3>สรุปเงินเดือน Mr.ซันจิ (รับวันที่ ${payDate})</h3>
             <p>ค่าแรงปกติรวม: ${totalNormal.toFixed(2)} บาท</p>
-            <p>ค่าแรง OT รวม: ${totalOT.toFixed(2)} บาท</p>
-            <p><strong>รับสุทธิ: ${(totalNormal + totalOT).toFixed(2)} บาท</strong></p>
+            <p>ค่าแรง OT 1.5 เท่า: ${totalOT1_5.toFixed(2)} บาท</p>
+            <p>ค่าแรง OT 2 เท่า: ${totalOT2.toFixed(2)} บาท</p>
+            <p><strong>รับสุทธิ: ${(totalNormal + totalOT1_5 + totalOT2).toFixed(2)} บาท</strong></p>
         `;
     };
 
@@ -114,11 +113,19 @@ button, select {
     padding: 5px 10px;
 }
 tr:nth-child(even) {background: #f2f2f2;}
+.footer {
+    margin-top: 30px;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    color: #d6336c;
+    font-size: 1.1em;
+}
 </style>
 </head>
 <body>
-<h1>เว็บคำนวณค่าแรงรายวัน</h1>
-<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, วันอาทิตย์และวันหยุดพิเศษ 2 เท่า</p>
+<h1>คำนวณค่าแรง Mr.ซันจิ</h1>
+<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, สามารถติ๊กถูกวันที่ได้ 2 เท่า (วันอาทิตย์หรือวันหยุดพิเศษ)</p>
 
 <label>เลือกเดือน: <input type="month" id="monthSelect"></label>
 <label>
@@ -131,7 +138,7 @@ tr:nth-child(even) {background: #f2f2f2;}
 
 <table>
 <thead>
-<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th></tr>
+<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th></tr>
 </thead>
 <tbody id="workTable"></tbody>
 </table>
@@ -140,5 +147,10 @@ tr:nth-child(even) {background: #f2f2f2;}
 
 <div id="result" style="margin-top:20px;"></div>
 
+<div class="footer">
+    เลขบัญชี 4972606648 กสิกรไทย จิตรา พงษ์สำราญ ❤️
+</div>
+
 </body>
 </html>
+
