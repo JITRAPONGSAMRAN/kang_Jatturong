@@ -11,58 +11,85 @@ document.addEventListener("DOMContentLoaded", () => {
     const hourlyWage = dailyWage / hoursPerDay;
     const otRate = 1.5;
     const sundayRate = 2;
-    const ssRate = 0.05;
-    const maxSS = 750;
 
     const table = document.getElementById("workTable");
-    const addRowBtn = document.getElementById("addRow");
+    const monthSelect = document.getElementById("monthSelect");
+    const periodSelect = document.getElementById("periodSelect");
     const calcBtn = document.getElementById("calcBtn");
     const result = document.getElementById("result");
 
-    addRowBtn.onclick = () => {
-        const row = table.insertRow();
-        row.innerHTML = `
-            <td><input type="date"></td>
-            <td><input type="number" min="0" max="8" value="8"></td>
-            <td><input type="number" min="0" value="0"></td>
-            <td><input type="checkbox"></td>
-        `;
-    };
+    const holidays = ["2025-06-20", "2025-06-28", "2025-07-04"]; // ตัวอย่างวันหยุดพิเศษ
+
+    function generateTable(startDay, endDay, month, year) {
+        table.innerHTML = "";
+        for (let day = startDay; day <= endDay; day++) {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const date = new Date(dateStr);
+            if (isNaN(date)) continue;
+
+            const isSunday = date.getDay() === 0;
+            const isHoliday = holidays.includes(dateStr);
+            const row = document.createElement("tr");
+            row.innerHTML = `
+                <td>${dateStr}</td>
+                <td><input type="number" min="0" max="8" value="8"></td>
+                <td><input type="number" min="0" value="0"></td>
+            `;
+            if (isSunday || isHoliday) row.style.backgroundColor = "#f8d7da";
+            table.appendChild(row);
+        }
+    }
+
+    function updateTable() {
+        const [year, month] = monthSelect.value.split("-").map(Number);
+        if (periodSelect.value === "second") {
+            generateTable(16, new Date(year, month, 0).getDate(), month, year);
+        } else {
+            generateTable(1, 15, month, year);
+        }
+    }
+
+    monthSelect.onchange = updateTable;
+    periodSelect.onchange = updateTable;
 
     calcBtn.onclick = () => {
-        let totalNormal = 0, totalOT = 0, totalSunday = 0;
-        let period1 = 0, period2 = 0;
+        let totalNormal = 0, totalOT = 0;
 
-        for (let i = 1; i < table.rows.length; i++) {
-            const cells = table.rows[i].cells;
-            const date = new Date(cells[0].querySelector("input").value);
-            if (isNaN(date)) continue;
-            const normalHours = parseFloat(cells[1].querySelector("input").value) || 0;
-            const otHours = parseFloat(cells[2].querySelector("input").value) || 0;
-            const isSunday = cells[3].querySelector("input").checked;
+        for (let row of table.rows) {
+            const dateStr = row.cells[0].innerText;
+            const date = new Date(dateStr);
+            const normalHours = parseFloat(row.cells[1].querySelector("input").value) || 0;
+            const otHours = parseFloat(row.cells[2].querySelector("input").value) || 0;
+            const isSunday = date.getDay() === 0;
+            const isHoliday = holidays.includes(dateStr);
 
             const wageNormal = (normalHours / hoursPerDay) * dailyWage;
-            const wageOT = otHours * hourlyWage * (isSunday ? sundayRate : otRate);
-            const total = wageNormal + wageOT;
-
-            if (date.getDate() <= 15) period1 += total;
-            else period2 += total;
+            const wageOT = otHours * hourlyWage * (isSunday || isHoliday ? sundayRate : otRate);
 
             totalNormal += wageNormal;
             totalOT += wageOT;
-            if (isSunday) totalSunday += wageOT;
         }
 
-        const ssDeduct = Math.min(dailyWage * 30 * ssRate, maxSS);
+        const [year, month] = monthSelect.value.split("-").map(Number);
+        let payDate;
+        if (periodSelect.value === "second") {
+            payDate = `5/${month + 1}/${year}`;
+        } else {
+            payDate = `20/${month}/${year}`;
+        }
 
         result.innerHTML = `
+            <h3>สรุปเงินเดือน (รับวันที่ ${payDate})</h3>
             <p>ค่าแรงปกติรวม: ${totalNormal.toFixed(2)} บาท</p>
-            <p>ค่าแรง OT รวม: ${totalOT.toFixed(2)} บาท (OT วันอาทิตย์: ${totalSunday.toFixed(2)} บาท)</p>
-            <p>หักประกันสังคม: ${ssDeduct.toFixed(2)} บาท</p>
-            <p><strong>งวด 1 (1-15): ${(period1 - ssDeduct / 2).toFixed(2)} บาท</strong></p>
-            <p><strong>งวด 2 (16-สิ้นเดือน): ${(period2 - ssDeduct / 2).toFixed(2)} บาท</strong></p>
+            <p>ค่าแรง OT รวม: ${totalOT.toFixed(2)} บาท</p>
+            <p><strong>รับสุทธิ: ${(totalNormal + totalOT).toFixed(2)} บาท</strong></p>
         `;
     };
+
+    const today = new Date();
+    const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    monthSelect.value = defaultMonth;
+    updateTable();
 });
 </script>
 <style>
@@ -82,25 +109,34 @@ th, td {
 input[type="number"] {
     width: 70px;
 }
-button {
+button, select {
     margin: 10px 5px;
     padding: 5px 10px;
 }
+tr:nth-child(even) {background: #f2f2f2;}
 </style>
 </head>
 <body>
 <h1>เว็บคำนวณค่าแรงรายวัน</h1>
-<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, วันอาทิตย์ 2 เท่า, หักประกันสังคมสูงสุด 750 บาท</p>
+<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, วันอาทิตย์และวันหยุดพิเศษ 2 เท่า</p>
 
-<table id="workTable">
+<label>เลือกเดือน: <input type="month" id="monthSelect"></label>
+<label>
+    งวดเงินเดือน:
+    <select id="periodSelect">
+        <option value="first">1 - 15 เงินออกวันที่ 20</option>
+        <option value="second">16 - สิ้นเดือน เงินออกวันที่ 5 เดือนถัดไป</option>
+    </select>
+</label>
+
+<table>
 <thead>
-<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>วันอาทิตย์</th></tr>
+<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th></tr>
 </thead>
-<tbody></tbody>
+<tbody id="workTable"></tbody>
 </table>
 
-<button id="addRow">เพิ่มวัน</button>
-<button id="calcBtn">คำนวณ</button>
+<button id="calcBtn">คำนวณเงินเดือน</button>
 
 <div id="result" style="margin-top:20px;"></div>
 
