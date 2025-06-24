@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>คำนวณค่าแรงรายวัน</title>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const dailyWage = 600;
+    const hoursPerDay = 8;
+    const hourlyWage = dailyWage / hoursPerDay;
+    const otRate = 1.5;
+    const sundayRate = 2;
+    const ssRate = 0.05;
+    const maxSS = 750;
+
+    const table = document.getElementById("workTable");
+    const addRowBtn = document.getElementById("addRow");
+    const calcBtn = document.getElementById("calcBtn");
+    const result = document.getElementById("result");
+
+    addRowBtn.onclick = () => {
+        const row = table.insertRow();
+        row.innerHTML = `
+            <td><input type="date"></td>
+            <td><input type="number" min="0" max="8" value="8"></td>
+            <td><input type="number" min="0" value="0"></td>
+            <td><input type="checkbox"></td>
+        `;
+    };
+
+    calcBtn.onclick = () => {
+        let totalNormal = 0, totalOT = 0, totalSunday = 0;
+        let period1 = 0, period2 = 0;
+
+        for (let i = 1; i < table.rows.length; i++) {
+            const cells = table.rows[i].cells;
+            const date = new Date(cells[0].querySelector("input").value);
+            if (isNaN(date)) continue;
+            const normalHours = parseFloat(cells[1].querySelector("input").value) || 0;
+            const otHours = parseFloat(cells[2].querySelector("input").value) || 0;
+            const isSunday = cells[3].querySelector("input").checked;
+
+            const wageNormal = (normalHours / hoursPerDay) * dailyWage;
+            const wageOT = otHours * hourlyWage * (isSunday ? sundayRate : otRate);
+            const total = wageNormal + wageOT;
+
+            if (date.getDate() <= 15) period1 += total;
+            else period2 += total;
+
+            totalNormal += wageNormal;
+            totalOT += wageOT;
+            if (isSunday) totalSunday += wageOT;
+        }
+
+        const ssDeduct = Math.min(dailyWage * 30 * ssRate, maxSS);
+
+        result.innerHTML = `
+            <p>ค่าแรงปกติรวม: ${totalNormal.toFixed(2)} บาท</p>
+            <p>ค่าแรง OT รวม: ${totalOT.toFixed(2)} บาท (OT วันอาทิตย์: ${totalSunday.toFixed(2)} บาท)</p>
+            <p>หักประกันสังคม: ${ssDeduct.toFixed(2)} บาท</p>
+            <p><strong>งวด 1 (1-15): ${(period1 - ssDeduct / 2).toFixed(2)} บาท</strong></p>
+            <p><strong>งวด 2 (16-สิ้นเดือน): ${(period2 - ssDeduct / 2).toFixed(2)} บาท</strong></p>
+        `;
+    };
+});
+</script>
+<style>
+body {
+    font-family: sans-serif;
+    padding: 20px;
+    max-width: 800px;
+    margin: auto;
+}
+table, th, td {
+    border: 1px solid #ddd;
+    border-collapse: collapse;
+}
+th, td {
+    padding: 8px;
+}
+input[type="number"] {
+    width: 70px;
+}
+button {
+    margin: 10px 5px;
+    padding: 5px 10px;
+}
+</style>
+</head>
+<body>
+<h1>เว็บคำนวณค่าแรงรายวัน</h1>
+<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, วันอาทิตย์ 2 เท่า, หักประกันสังคมสูงสุด 750 บาท</p>
+
+<table id="workTable">
+<thead>
+<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>วันอาทิตย์</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<button id="addRow">เพิ่มวัน</button>
+<button id="calcBtn">คำนวณ</button>
+
+<div id="result" style="margin-top:20px;"></div>
+
+</body>
+</html>
