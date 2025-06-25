@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>คำนวณค่าแรง Mr.ซันจิ</title>
+<title>คำนวณค่าแรง นาย จัตุรงค์</title>
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const dailyWage = 600;
@@ -18,6 +18,37 @@ document.addEventListener("DOMContentLoaded", () => {
     const calcBtn = document.getElementById("calcBtn");
     const result = document.getElementById("result");
 
+    function saveData() {
+        const data = [];
+        for (let row of table.rows) {
+            data.push({
+                date: row.cells[0].innerText,
+                normalHours: row.cells[1].querySelector("input").value,
+                otHours: row.cells[2].querySelector("input").value,
+                isDouble: row.cells[3].querySelector("input").checked,
+                isAbsent: row.cells[4].querySelector("input").checked
+            });
+        }
+        const key = `${monthSelect.value}-${periodSelect.value}`;
+        localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    function loadData() {
+        const key = `${monthSelect.value}-${periodSelect.value}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            const data = JSON.parse(saved);
+            data.forEach((d, i) => {
+                if (table.rows[i]) {
+                    table.rows[i].cells[1].querySelector("input").value = d.normalHours;
+                    table.rows[i].cells[2].querySelector("input").value = d.otHours;
+                    table.rows[i].cells[3].querySelector("input").checked = d.isDouble;
+                    table.rows[i].cells[4].querySelector("input").checked = d.isAbsent;
+                }
+            });
+        }
+    }
+
     function generateTable(startDay, endDay, month, year) {
         table.innerHTML = "";
         for (let day = startDay; day <= endDay; day++) {
@@ -31,6 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 <td><input type="number" min="0" max="8" value="8"></td>
                 <td><input type="number" min="0" value="0"></td>
                 <td><input type="checkbox"></td>
+                <td><input type="checkbox"></td>
             `;
             table.appendChild(row);
         }
@@ -43,6 +75,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             generateTable(1, 15, month, year);
         }
+        loadData();
     }
 
     monthSelect.onchange = updateTable;
@@ -52,12 +85,12 @@ document.addEventListener("DOMContentLoaded", () => {
         let totalNormal = 0, totalOT1_5 = 0, totalOT2 = 0;
 
         for (let row of table.rows) {
-            const dateStr = row.cells[0].innerText;
             const normalHours = parseFloat(row.cells[1].querySelector("input").value) || 0;
             const otHours = parseFloat(row.cells[2].querySelector("input").value) || 0;
             const isDoubleRate = row.cells[3].querySelector("input").checked;
+            const isAbsent = row.cells[4].querySelector("input").checked;
 
-            const wageNormal = (normalHours / hoursPerDay) * dailyWage;
+            const wageNormal = isAbsent ? 0 : (normalHours / hoursPerDay) * dailyWage;
             const wageOT = otHours * hourlyWage * (isDoubleRate ? sundayRate : otRate);
 
             totalNormal += wageNormal;
@@ -83,6 +116,8 @@ document.addEventListener("DOMContentLoaded", () => {
             <p>ค่าแรง OT 2 เท่า: ${totalOT2.toFixed(2)} บาท</p>
             <p><strong>รับสุทธิ: ${(totalNormal + totalOT1_5 + totalOT2).toFixed(2)} บาท</strong></p>
         `;
+
+        saveData();
     };
 
     const today = new Date();
@@ -95,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
 body {
     font-family: sans-serif;
     padding: 20px;
-    max-width: 800px;
+    max-width: 900px;
     margin: auto;
 }
 table, th, td {
@@ -104,6 +139,7 @@ table, th, td {
 }
 th, td {
     padding: 8px;
+    text-align: center;
 }
 input[type="number"] {
     width: 70px;
@@ -125,7 +161,7 @@ tr:nth-child(even) {background: #f2f2f2;}
 </head>
 <body>
 <h1>คำนวณค่าแรง Mr.ซันจิ</h1>
-<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, สามารถติ๊กถูกวันที่ได้ 2 เท่า (วันอาทิตย์หรือวันหยุดพิเศษ)</p>
+<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, สามารถติ๊กถูกวันที่ได้ 2 เท่า (วันอาทิตย์หรือวันหยุดพิเศษ), ติ๊กวันหยุดเพื่อหักค่าแรงปกติ</p>
 
 <label>เลือกเดือน: <input type="month" id="monthSelect"></label>
 <label>
@@ -138,7 +174,7 @@ tr:nth-child(even) {background: #f2f2f2;}
 
 <table>
 <thead>
-<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th></tr>
+<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th><th>หยุด</th></tr>
 </thead>
 <tbody id="workTable"></tbody>
 </table>
