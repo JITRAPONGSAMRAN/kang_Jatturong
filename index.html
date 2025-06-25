@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>คำนวณค่าแรง Mr.ซันจิ</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#000000" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const dailyWage = 600;
@@ -214,6 +218,15 @@ img.big-img {
 <div class="footer">
     เลขบัญชี 4972606648 กสิกรไทย จิตรา พงษ์สำราญ ❤️
 </div>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js')
+      .then(reg => console.log("Service Worker registered!", reg))
+      .catch(err => console.error("SW registration failed:", err));
+  });
+}
+</script>
 
 </body>
 </html>
