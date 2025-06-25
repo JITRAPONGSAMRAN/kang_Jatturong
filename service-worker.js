@@ -1,9 +1,12 @@
+
 const CACHE_NAME = "kang-cache-v1";
 const urlsToCache = [
   "/",
   "/index.html",
   "/style.css",
-  "/manifest.json"
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png"
 ];
 
 self.addEventListener("install", event => {
