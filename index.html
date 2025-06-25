@@ -130,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
 body {
     font-family: sans-serif;
     padding: 20px;
-    max-width: 900px;
+    max-width: 1200px;
     margin: auto;
 }
 table, th, td {
@@ -160,37 +160,53 @@ tr:nth-child(even) {background: #f2f2f2;}
 img.big-img {
     max-width: 100%;
     height: auto;
-    margin: 20px 0;
     box-shadow: 0 0 15px rgba(0,0,0,0.2);
+}
+.flex-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.left-panel {
+    flex: 1;
+}
+.right-panel {
+    flex-shrink: 0;
+    max-width: 350px;
 }
 </style>
 </head>
 <body>
 <h1>คำนวณค่าแรง Mr.ซันจิ</h1>
 <p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, สามารถติ๊กถูกวันที่ได้ 2 เท่า (วันอาทิตย์หรือวันหยุดพิเศษ), ติ๊กวันหยุดเพื่อหักค่าแรงปกติ</p>
+<div class="flex-container">
+  <div class="left-panel">
+    <label>เลือกเดือน: <input type="month" id="monthSelect"></label>
+    <label>
+        งวดเงินเดือน:
+        <select id="periodSelect">
+            <option value="first">1 - 15 เงินออกวันที่ 20</option>
+            <option value="second">16 - สิ้นเดือน เงินออกวันที่ 5 เดือนถัดไป</option>
+        </select>
+    </label>
 
-<label>เลือกเดือน: <input type="month" id="monthSelect"></label>
-<label>
-    งวดเงินเดือน:
-    <select id="periodSelect">
-        <option value="first">1 - 15 เงินออกวันที่ 20</option>
-        <option value="second">16 - สิ้นเดือน เงินออกวันที่ 5 เดือนถัดไป</option>
-    </select>
-</label>
+    <table>
+    <thead>
+    <tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th><th>หยุด</th></tr>
+    </thead>
+    <tbody id="workTable"></tbody>
+    </table>
 
-<table>
-<thead>
-<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th><th>หยุด</th></tr>
-</thead>
-<tbody id="workTable"></tbody>
-</table>
+    <button id="calcBtn">คำนวณเงินเดือน</button>
+    <div id="result" style="margin-top:20px;"></div>
+  </div>
 
-<button id="calcBtn">คำนวณเงินเดือน</button>
-
-<div id="result" style="margin-top:20px;"></div>
-
-<h2>ปฏิทินวันหยุด ปี 2568</h2>
-<img src="holi.jpeg" alt="ปฏิทินวันหยุด" class="big-img">
+  <div class="right-panel">
+    <h2>ปฏิทินวันหยุด ปี 2568</h2>
+    <img src="holi.jpeg" alt="ปฏิทินวันหยุด" class="big-img">
+  </div>
+</div>
 
 <h2>รูปเจ้าของเว็บ Mr.ซันจิ</h2>
 <img src="IMG_3606.JPG" alt="รูปตัวเอง" class="big-img" style="max-width:300px; border-radius:15px;">
