@@ -23,13 +23,20 @@ th, td {
 input[type="number"] {
     width: 70px;
 }
-button, select {
+button, select, input[type="month"] {
     margin: 10px 5px;
     padding: 5px 10px;
 }
 tr:nth-child(even) {background: #f2f2f2;}
 tr.double-rate { background-color: #ffe0e0; }
 tr.absent { background-color: #ddd; }
+.total-row { background: #d0f0d0; font-weight: bold; }
+@media (max-width: 600px) {
+    table, thead, tbody, th, td, tr { display: block; }
+    td { text-align: right; padding-left: 50%; position: relative; }
+    td:before { content: attr(data-label); position: absolute; left: 0; width: 50%; padding-left: 5px; font-weight: bold; text-align: left; }
+    input[type="number"] { width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -45,15 +52,20 @@ tr.absent { background-color: #ddd; }
     </select>
 </label>
 
+<button id="exportBtn">Export ข้อมูล</button>
+<input type="file" id="importFile" style="display:none">
+<button id="importBtn">Import ข้อมูล</button>
+
 <table>
 <thead>
-<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th><th>หยุด</th></tr>
+<tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th><th>หยุด</th><th>รวมเงิน</th></tr>
 </thead>
 <tbody id="workTable"></tbody>
+<tfoot>
+<tr class="total-row"><td colspan="5">รวมเงินทั้งหมด</td><td id="totalSum">0.00</td></tr>
+</tfoot>
 </table>
 
-<button id="calcBtn">คำนวณเงินเดือน</button>
-<button id="clearBtn">ล้างข้อมูลงวดนี้</button>
 <div id="result" style="margin-top:20px;"></div>
 
 <script>
@@ -67,18 +79,18 @@ document.addEventListener("DOMContentLoaded", () => {
     const table = document.getElementById("workTable");
     const monthSelect = document.getElementById("monthSelect");
     const periodSelect = document.getElementById("periodSelect");
-    const calcBtn = document.getElementById("calcBtn");
+    const totalSum = document.getElementById("totalSum");
     const result = document.getElementById("result");
 
     function saveData() {
         const data = [];
         for (let row of table.rows) {
             data.push({
-                date: row.cells[0].innerText,
-                normalHours: row.cells[1].querySelector("input").value,
-                otHours: row.cells[2].querySelector("input").value,
-                isDouble: row.cells[3].querySelector("input").checked,
-                isAbsent: row.cells[4].querySelector("input").checked
+                date: row.dataset.date,
+                normalHours: row.querySelector(".normal").value,
+                otHours: row.querySelector(".ot").value,
+                isDouble: row.querySelector(".double").checked,
+                isAbsent: row.querySelector(".absent").checked
             });
         }
         const key = `${monthSelect.value}-${periodSelect.value}`;
@@ -92,13 +104,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = JSON.parse(saved);
             data.forEach((d, i) => {
                 if (table.rows[i]) {
-                    table.rows[i].cells[1].querySelector("input").value = d.normalHours;
-                    table.rows[i].cells[2].querySelector("input").value = d.otHours;
-                    table.rows[i].cells[3].querySelector("input").checked = d.isDouble;
-                    table.rows[i].cells[4].querySelector("input").checked = d.isAbsent;
+                    table.rows[i].querySelector(".normal").value = d.normalHours;
+                    table.rows[i].querySelector(".ot").value = d.otHours;
+                    table.rows[i].querySelector(".double").checked = d.isDouble;
+                    table.rows[i].querySelector(".absent").checked = d.isAbsent;
                 }
             });
         }
+        calculate();
     }
 
     function generateTable(startDay, endDay, month, year) {
@@ -107,21 +120,70 @@ document.addEventListener("DOMContentLoaded", () => {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const date = new Date(dateStr);
             if (isNaN(date)) continue;
-            const dayName = date.toLocaleDateString("en-TH", { weekday: "short" });
 
             const row = document.createElement("tr");
+            row.dataset.date = dateStr;
             row.innerHTML = `
-                <td style="color: ${dayName === "Sun" ? "red" : "black"}">${dateStr} (${dayName})</td>
-                <td><input type="number" min="0" max="8" value="8"></td>
-                <td><input type="number" min="0" value="2"></td>
-                <td><input type="checkbox"></td>
-                <td><input type="checkbox"></td>
+                <td>${new Date(dateStr).toLocaleDateString("th-TH", { year: "numeric", month: "2-digit", day: "2-digit" })}</td>
+                <td><input class="normal" type="number" min="0" max="8" value="8"></td>
+                <td><input class="ot" type="number" min="0" value="2"></td>
+                <td><input class="double" type="checkbox"></td>
+                <td><input class="absent" type="checkbox"></td>
+                <td class="sumCell">0.00</td>
             `;
             table.appendChild(row);
         }
     }
 
-    function updateTable() {
+    function calculate() {
+        let total = 0;
+        for (let row of table.rows) {
+            const normal = parseFloat(row.querySelector(".normal").value) || 0;
+            const ot = parseFloat(row.querySelector(".ot").value) || 0;
+            const isDouble = row.querySelector(".double").checked;
+            const isAbsent = row.querySelector(".absent").checked;
+
+            const rate = isDouble ? sundayRate : 1;
+            const normalPay = isAbsent ? 0 : (normal / hoursPerDay) * dailyWage * rate;
+            const otPay = isAbsent ? 0 : ot * hourlyWage * (isDouble ? sundayRate : otRate);
+
+            const sum = normalPay + otPay;
+            row.querySelector(".sumCell").innerText = sum.toFixed(2);
+
+            row.className = isAbsent ? "absent" : isDouble ? "double-rate" : "";
+
+            total += sum;
+        }
+        totalSum.innerText = total.toFixed(2);
+        saveData();
+    }
+
+    document.getElementById("exportBtn").onclick = () => {
+        const key = `${monthSelect.value}-${periodSelect.value}`;
+        const data = localStorage.getItem(key);
+        if (data) {
+            const blob = new Blob([data], {type: "application/json"});
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `${key}.json`;
+            link.click();n        }
+    };
+
+    document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
+
+    document.getElementById("importFile").onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const key = `${monthSelect.value}-${periodSelect.value}`;
+            localStorage.setItem(key, reader.result);
+            loadData();
+        };
+        reader.readAsText(file);
+    };
+
+    monthSelect.onchange = periodSelect.onchange = () => {
         const [year, month] = monthSelect.value.split("-").map(Number);
         if (periodSelect.value === "second") {
             generateTable(16, new Date(year, month, 0).getDate(), month, year);
@@ -129,85 +191,14 @@ document.addEventListener("DOMContentLoaded", () => {
             generateTable(1, 15, month, year);
         }
         loadData();
-    }
-
-    calcBtn.onclick = () => {
-        let totalNormal = 0, totalOT1_5 = 0, totalOT2 = 0;
-        let workDays = 0, doubleDays = 0, absentDays = 0;
-
-        for (let row of table.rows) {
-            const normalHours = parseFloat(row.cells[1].querySelector("input").value) || 0;
-            const otHours = parseFloat(row.cells[2].querySelector("input").value) || 0;
-            const isDoubleRate = row.cells[3].querySelector("input").checked;
-            const isAbsent = row.cells[4].querySelector("input").checked;
-
-            let normalRate = isDoubleRate ? sundayRate : 1;
-            const wageNormal = isAbsent ? 0 : (normalHours / hoursPerDay) * dailyWage * normalRate;
-            const wageOT = isAbsent ? 0 : otHours * hourlyWage * (isDoubleRate ? sundayRate : otRate);
-
-            if (!isAbsent) workDays++;
-            if (isDoubleRate) doubleDays++;
-            if (isAbsent) absentDays++;
-
-            totalNormal += wageNormal;
-            if (isDoubleRate) {
-                totalOT2 += otHours * hourlyWage * sundayRate;
-            } else {
-                totalOT1_5 += otHours * hourlyWage * otRate;
-            }
-
-            row.className = isAbsent ? "absent" : isDoubleRate ? "double-rate" : "";
-        }
-
-        const [year, month] = monthSelect.value.split("-").map(Number);
-        let payDate, sso = 0;
-        if (periodSelect.value === "second") {
-            payDate = `5/${month + 1}/${year}`;
-        } else {
-            payDate = `20/${month}/${year}`;
-            sso = 750;
-        }
-
-        const total = totalNormal + totalOT1_5 + totalOT2;
-        const netPay = total - sso;
-
-        result.innerHTML = `
-            <div id="paySlip">
-                <h3>สรุปเงินเดือน นาย Kang (รับวันที่ ${payDate})</h3>
-                <p>ค่าแรงปกติรวม: ${totalNormal.toFixed(2)} บาท</p>
-                <p>ค่าแรง OT 1.5 เท่า: ${totalOT1_5.toFixed(2)} บาท</p>
-                <p>ค่าแรง OT 2 เท่า: ${totalOT2.toFixed(2)} บาท</p>
-                <p>หักประกันสังคม: ${sso.toFixed(2)} บาท</p>
-                <p><strong>รับสุทธิ: ${netPay.toFixed(2)} บาท</strong></p>
-                <hr>
-                <p>จำนวนวันทำงาน: ${workDays} วัน</p>
-                <p>วันหยุดงาน: ${absentDays} วัน</p>
-                <p>วันที่ได้ 2 เท่า: ${doubleDays} วัน</p>
-            </div>
-            <button onclick="downloadPDF()">📄 บันทึก PDF</button>
-        `;
-
-        saveData();
     };
 
-    document.getElementById("clearBtn").onclick = () => {
-        if (confirm("แน่ใจว่าต้องการล้างข้อมูลงวดนี้?")) {
-            const key = `${monthSelect.value}-${periodSelect.value}`;
-            localStorage.removeItem(key);
-            updateTable();
-            result.innerHTML = "";
-        }
-    };
-
-    window.downloadPDF = function () {
-        const element = document.getElementById("paySlip");
-        html2pdf().from(element).save(`Payslip_Kang.pdf`);
-    };
+    table.addEventListener("input", calculate);
+    table.addEventListener("change", calculate);
 
     const today = new Date();
-    const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    monthSelect.value = defaultMonth;
-    updateTable();
+    monthSelect.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    monthSelect.dispatchEvent(new Event("change"));
 });
 </script>
 </body>
