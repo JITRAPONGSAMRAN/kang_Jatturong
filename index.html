@@ -3,78 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>คำนวณค่าแรง Mr.ซันจิ</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<title>คำนวณค่าแรง นาย Kang</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 body {
-    font-family: 'Segoe UI', sans-serif;
+    font-family: sans-serif;
     padding: 20px;
-    background: #fefefe;
     max-width: 1200px;
     margin: auto;
-    color: #333;
 }
-table {
+table, th, td {
+    border: 1px solid #ddd;
     border-collapse: collapse;
-    width: 100%;
-    margin-top: 15px;
 }
 th, td {
-    border: 1px solid #ccc;
     padding: 8px;
     text-align: center;
 }
-th {
-    background-color: #f5f5f5;
-}
 input[type="number"] {
-    width: 60px;
-    padding: 2px 5px;
+    width: 70px;
 }
-button, select, input[type="month"] {
+button, select {
+    margin: 10px 5px;
     padding: 5px 10px;
-    margin: 5px;
 }
+tr:nth-child(even) {background: #f2f2f2;}
 tr.double-rate { background-color: #ffe0e0; }
-tr.absent { background-color: #e0e0e0; }
-.red-date { color: red; font-weight: bold; }
-.result-box {
-    margin-top: 20px;
-    background: #fafafa;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
-.footer {
-    margin-top: 30px;
-    text-align: center;
-    font-size: 0.95em;
-    color: #777;
-}
+tr.absent { background-color: #ddd; }
 </style>
 </head>
 <body>
-<h1>คำนวณค่าแรง Mr.ซันจิ</h1>
+<h1>คำนวณค่าแรง นาย Kang</h1>
+<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, ติ๊ก "2 เท่า" เพื่อคิดชั่วโมงปกติและ OT คูณ 2</p>
+
 <label>เลือกเดือน: <input type="month" id="monthSelect"></label>
-<label>งวดเงินเดือน:
+<label>
+    งวดเงินเดือน:
     <select id="periodSelect">
-        <option value="first">1 - 15 (เงินออก 20)</option>
-        <option value="second">16 - สิ้นเดือน (เงินออก 5)</option>
+        <option value="first">1 - 15 เงินออกวันที่ 20</option>
+        <option value="second">16 - สิ้นเดือน เงินออกวันที่ 5 เดือนถัดไป</option>
     </select>
 </label>
-<button id="calcBtn">คำนวณเงินเดือน</button>
-<button id="clearBtn">ล้างข้อมูลงวดนี้</button>
-<button id="pdfBtn">บันทึก PDF</button>
-<button id="summaryBtn">รวมยอดทั้งเดือน</button>
+
 <table>
 <thead>
 <tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th><th>หยุด</th></tr>
 </thead>
 <tbody id="workTable"></tbody>
 </table>
-<div id="result" class="result-box"></div>
-<div id="monthlySummary" class="result-box" style="display:none"></div>
+
+<button id="calcBtn">คำนวณเงินเดือน</button>
+<button id="clearBtn">ล้างข้อมูลงวดนี้</button>
+<div id="result" style="margin-top:20px;"></div>
+
 <script>
 document.addEventListener("DOMContentLoaded", () => {
     const dailyWage = 600;
@@ -87,20 +68,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const monthSelect = document.getElementById("monthSelect");
     const periodSelect = document.getElementById("periodSelect");
     const calcBtn = document.getElementById("calcBtn");
-    const clearBtn = document.getElementById("clearBtn");
-    const pdfBtn = document.getElementById("pdfBtn");
-    const summaryBtn = document.getElementById("summaryBtn");
     const result = document.getElementById("result");
-    const monthlySummary = document.getElementById("monthlySummary");
 
     function saveData() {
-        const data = [...table.rows].map(row => ({
-            date: row.cells[0].dataset.date,
-            normalHours: row.cells[1].querySelector("input").value,
-            otHours: row.cells[2].querySelector("input").value,
-            isDouble: row.cells[3].querySelector("input").checked,
-            isAbsent: row.cells[4].querySelector("input").checked
-        }));
+        const data = [];
+        for (let row of table.rows) {
+            data.push({
+                date: row.cells[0].innerText,
+                normalHours: row.cells[1].querySelector("input").value,
+                otHours: row.cells[2].querySelector("input").value,
+                isDouble: row.cells[3].querySelector("input").checked,
+                isAbsent: row.cells[4].querySelector("input").checked
+            });
+        }
         const key = `${monthSelect.value}-${periodSelect.value}`;
         localStorage.setItem(key, JSON.stringify(data));
     }
@@ -127,12 +107,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const date = new Date(dateStr);
             if (isNaN(date)) continue;
-            const isSunday = date.getDay() === 0;
+            const dayName = date.toLocaleDateString("en-TH", { weekday: "short" });
+
             const row = document.createElement("tr");
             row.innerHTML = `
-                <td class="${isSunday ? 'red-date' : ''}" data-date="${dateStr}">${dateStr}</td>
+                <td style="color: ${dayName === "Sun" ? "red" : "black"}">${dateStr} (${dayName})</td>
                 <td><input type="number" min="0" max="8" value="8"></td>
-                <td><input type="number" min="0" value="0"></td>
+                <td><input type="number" min="0" value="2"></td>
                 <td><input type="checkbox"></td>
                 <td><input type="checkbox"></td>
             `;
@@ -142,29 +123,17 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateTable() {
         const [year, month] = monthSelect.value.split("-").map(Number);
-        const lastDay = new Date(year, month, 0).getDate();
         if (periodSelect.value === "second") {
-            generateTable(16, lastDay, month, year);
+            generateTable(16, new Date(year, month, 0).getDate(), month, year);
         } else {
             generateTable(1, 15, month, year);
         }
         loadData();
     }
 
-    function totalPay(data) {
-        return data.reduce((sum, row) => {
-            const hrs = parseFloat(row.normalHours || 0);
-            const isDouble = row.isDouble;
-            const isAbsent = row.isAbsent;
-            if (isAbsent) return sum;
-            const base = (hrs / hoursPerDay) * dailyWage * (isDouble ? sundayRate : 1);
-            const ot = parseFloat(row.otHours || 0) * hourlyWage * (isDouble ? sundayRate : otRate);
-            return sum + base + ot;
-        }, 0);
-    }
-
-    function calculateAll() {
-        let totalNormal = 0, totalOT1_5 = 0, totalOT2 = 0, daysWorked = 0, doubleDays = 0, absentDays = 0;
+    calcBtn.onclick = () => {
+        let totalNormal = 0, totalOT1_5 = 0, totalOT2 = 0;
+        let workDays = 0, doubleDays = 0, absentDays = 0;
 
         for (let row of table.rows) {
             const normalHours = parseFloat(row.cells[1].querySelector("input").value) || 0;
@@ -172,81 +141,72 @@ document.addEventListener("DOMContentLoaded", () => {
             const isDoubleRate = row.cells[3].querySelector("input").checked;
             const isAbsent = row.cells[4].querySelector("input").checked;
 
-            row.className = isAbsent ? "absent" : isDoubleRate ? "double-rate" : "";
+            let normalRate = isDoubleRate ? sundayRate : 1;
+            const wageNormal = isAbsent ? 0 : (normalHours / hoursPerDay) * dailyWage * normalRate;
+            const wageOT = isAbsent ? 0 : otHours * hourlyWage * (isDoubleRate ? sundayRate : otRate);
 
-            if (!isAbsent) {
-                daysWorked++;
-                const wageNormal = (normalHours / hoursPerDay) * dailyWage * (isDoubleRate ? sundayRate : 1);
-                const wageOT = otHours * hourlyWage * (isDoubleRate ? sundayRate : otRate);
-                totalNormal += wageNormal;
-                totalOT1_5 += isDoubleRate ? 0 : wageOT;
-                totalOT2 += isDoubleRate ? wageOT : 0;
-                if (isDoubleRate) doubleDays++;
+            if (!isAbsent) workDays++;
+            if (isDoubleRate) doubleDays++;
+            if (isAbsent) absentDays++;
+
+            totalNormal += wageNormal;
+            if (isDoubleRate) {
+                totalOT2 += otHours * hourlyWage * sundayRate;
             } else {
-                absentDays++;
+                totalOT1_5 += otHours * hourlyWage * otRate;
             }
+
+            row.className = isAbsent ? "absent" : isDoubleRate ? "double-rate" : "";
         }
 
-        const keyFirst = `${monthSelect.value}-first`;
-        const keySecond = `${monthSelect.value}-second`;
-        const first = JSON.parse(localStorage.getItem(keyFirst) || "[]");
-        const second = JSON.parse(localStorage.getItem(keySecond) || "[]");
+        const [year, month] = monthSelect.value.split("-").map(Number);
+        let payDate, sso = 0;
+        if (periodSelect.value === "second") {
+            payDate = `5/${month + 1}/${year}`;
+        } else {
+            payDate = `20/${month}/${year}`;
+            sso = 750;
+        }
 
-        const totalForSSO = totalPay(first.concat(second));
-        const ssoDeduction = (periodSelect.value === 'first') ? Math.min(totalForSSO, 750) * 0.05 : 0;
-        const netPay = totalNormal + totalOT1_5 + totalOT2 - ssoDeduction;
+        const total = totalNormal + totalOT1_5 + totalOT2;
+        const netPay = total - sso;
 
         result.innerHTML = `
-            <h3>สรุปเงินเดือน</h3>
-            <p>วันทำงาน: ${daysWorked} วัน | หยุด: ${absentDays} วัน | ได้ 2 เท่า: ${doubleDays} วัน</p>
-            <p>ค่าแรงปกติรวม: ${totalNormal.toFixed(2)} บาท</p>
-            <p>ค่าแรง OT 1.5 เท่า: ${totalOT1_5.toFixed(2)} บาท</p>
-            <p>ค่าแรง OT 2 เท่า: ${totalOT2.toFixed(2)} บาท</p>
-            ${ssoDeduction > 0 ? `<p>หักประกันสังคม: ${ssoDeduction.toFixed(2)} บาท</p>` : ''}
-            <p><strong>รับสุทธิ: ${netPay.toFixed(2)} บาท</strong></p>
+            <div id="paySlip">
+                <h3>สรุปเงินเดือน นาย Kang (รับวันที่ ${payDate})</h3>
+                <p>ค่าแรงปกติรวม: ${totalNormal.toFixed(2)} บาท</p>
+                <p>ค่าแรง OT 1.5 เท่า: ${totalOT1_5.toFixed(2)} บาท</p>
+                <p>ค่าแรง OT 2 เท่า: ${totalOT2.toFixed(2)} บาท</p>
+                <p>หักประกันสังคม: ${sso.toFixed(2)} บาท</p>
+                <p><strong>รับสุทธิ: ${netPay.toFixed(2)} บาท</strong></p>
+                <hr>
+                <p>จำนวนวันทำงาน: ${workDays} วัน</p>
+                <p>วันหยุดงาน: ${absentDays} วัน</p>
+                <p>วันที่ได้ 2 เท่า: ${doubleDays} วัน</p>
+            </div>
+            <button onclick="downloadPDF()">📄 บันทึก PDF</button>
         `;
+
         saveData();
-    }
-
-    pdfBtn.onclick = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        doc.text("สรุปเงินเดือน Mr.ซันจิ", 10, 10);
-        doc.fromHTML(result.innerHTML, 10, 20);
-        doc.save(`salary-${monthSelect.value}-${periodSelect.value}.pdf`);
     };
 
-    summaryBtn.onclick = () => {
-        const keyFirst = `${monthSelect.value}-first`;
-        const keySecond = `${monthSelect.value}-second`;
-        const first = JSON.parse(localStorage.getItem(keyFirst) || "[]");
-        const second = JSON.parse(localStorage.getItem(keySecond) || "[]");
-        const total = totalPay(first.concat(second));
-        const sso = Math.min(total, 750) * 0.05;
-        const net = total - sso;
-
-        monthlySummary.style.display = "block";
-        monthlySummary.innerHTML = `
-            <h3>รวมยอดทั้งเดือน ${monthSelect.value}</h3>
-            <p>รวมรายได้: ${total.toFixed(2)} บาท</p>
-            <p>หักประกันสังคม: ${sso.toFixed(2)} บาท</p>
-            <p><strong>รับสุทธิทั้งเดือน: ${net.toFixed(2)} บาท</strong></p>
-        `;
-    };
-
-    monthSelect.onchange = updateTable;
-    periodSelect.onchange = updateTable;
-    calcBtn.onclick = calculateAll;
-    clearBtn.onclick = () => {
-        if (confirm("ล้างข้อมูลงวดนี้?")) {
-            localStorage.removeItem(`${monthSelect.value}-${periodSelect.value}`);
+    document.getElementById("clearBtn").onclick = () => {
+        if (confirm("แน่ใจว่าต้องการล้างข้อมูลงวดนี้?")) {
+            const key = `${monthSelect.value}-${periodSelect.value}`;
+            localStorage.removeItem(key);
             updateTable();
             result.innerHTML = "";
         }
     };
 
+    window.downloadPDF = function () {
+        const element = document.getElementById("paySlip");
+        html2pdf().from(element).save(`Payslip_Kang.pdf`);
+    };
+
     const today = new Date();
-    monthSelect.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const defaultMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    monthSelect.value = defaultMonth;
     updateTable();
 });
 </script>
