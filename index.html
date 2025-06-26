@@ -51,14 +51,15 @@ tr.absent { background-color: #ddd; }
         <option value="second">16 - สิ้นเดือน เงินออกวันที่ 5 เดือนถัดไป</option>
     </select>
 </label>
+<button id="pdfBtn">บันทึก PDF ใบลงเวลา</button>
 
-<table>
+<table id="timeTable">
 <thead>
 <tr><th>วันที่</th><th>ชั่วโมงปกติ</th><th>OT (ชม.)</th><th>2 เท่า</th><th>หยุด</th><th>รวมเงิน</th></tr>
 </thead>
 <tbody id="workTable"></tbody>
 <tfoot>
-<tr class="total-row"><td colspan="5">รวมเงินทั้งหมด</td><td id="totalSum">0.00</td></tr>
+<tr class="total-row"><td colspan="5">รวมเงินทั้งหมด (ยังไม่หักประกันสังคม)</td><td id="totalSum">0.00</td></tr>
 </tfoot>
 </table>
 
@@ -123,7 +124,7 @@ document.addEventListener("DOMContentLoaded", () => {
             row.className = isAbsent ? "absent" : isDouble ? "double-rate" : "";
 
             total += sum;
-            if (!isAbsent) workDays++;
+            if (!isAbsent && !isDouble) workDays++;
             if (isAbsent) absentDays++;
             if (isDouble) doubleDays++;
             totalNormalPay += normalPay;
@@ -137,15 +138,16 @@ document.addEventListener("DOMContentLoaded", () => {
         let sso = 0;
         if (periodSelect.value === "first") sso = ssoFixed;
 
-        totalSum.innerText = (total - sso).toFixed(2);
+        totalSum.innerText = total.toFixed(2);
 
         summary.innerHTML = `
-            <p>จำนวนวันทำงาน: ${workDays} วัน</p>
+            <p>จำนวนวันทำงานปกติ: ${workDays} วัน</p>
             <p>จำนวนวันหยุด: ${absentDays} วัน</p>
             <p>วันที่คิด 2 เท่า: ${doubleDays} วัน</p>
             <p>ค่าแรงปกติรวม: ${totalNormalPay.toFixed(2)} บาท</p>
             <p>ค่าแรง OT 1.5 เท่า: ${totalOT15.toFixed(2)} บาท</p>
             <p>ค่าแรง OT 2 เท่า: ${totalOT2.toFixed(2)} บาท</p>
+            <p>รวมเงินทั้งหมด (ยังไม่หักประกันสังคม): ${total.toFixed(2)} บาท</p>
             <p>หักประกันสังคม: ${sso.toFixed(2)} บาท</p>
             <p><strong>รับสุทธิ: ${(total - sso).toFixed(2)} บาท</strong></p>
         `;
@@ -163,6 +165,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     table.addEventListener("input", calculate);
     table.addEventListener("change", calculate);
+
+    document.getElementById("pdfBtn").onclick = () => {
+        const element = document.getElementById("timeTable");
+        html2pdf().from(element).save("TimeSheet_Kang.pdf");
+    };
 
     const today = new Date();
     monthSelect.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
