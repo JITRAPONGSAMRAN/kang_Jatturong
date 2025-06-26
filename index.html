@@ -7,43 +7,101 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 body {
-    font-family: sans-serif;
+    font-family: "Segoe UI", sans-serif;
+    background: #f5f7fa;
     padding: 20px;
-    max-width: 1200px;
+    max-width: 900px;
     margin: auto;
+    color: #333;
 }
-table, th, td {
-    border: 1px solid #ddd;
+
+h1 {
+    text-align: center;
+    color: #007bff;
+    margin-bottom: 20px;
+}
+
+label, select, input[type="month"] {
+    margin: 5px 10px 15px 0;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 15px;
+    margin: 10px 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: background 0.3s;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+table {
+    width: 100%;
     border-collapse: collapse;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 15px;
 }
-th, td {
+
+table th {
+    background: #cce5ff;
+    color: #333;
+    padding: 10px;
+}
+
+table td {
     padding: 8px;
     text-align: center;
+    border-bottom: 1px solid #ddd;
 }
+
 input[type="number"] {
     width: 70px;
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
 }
-button, select, input[type="month"] {
-    margin: 10px 5px;
-    padding: 5px 10px;
-}
-tr:nth-child(even) {background: #f2f2f2;}
+
+tr:nth-child(even) { background: #f9f9f9; }
 tr.double-rate { background-color: #ffe0e0; }
 tr.absent { background-color: #ddd; }
-.total-row { background: #d0f0d0; font-weight: bold; }
-.sunday-text { color: red; }
+.total-row { background: #d4edda; font-weight: bold; }
+.sunday-text { color: red; font-weight: bold; }
+
+#summary p {
+    margin: 5px 0;
+    font-size: 1.1em;
+}
+
 @media (max-width: 600px) {
-    table, thead, tbody, th, td, tr { display: block; }
-    td { text-align: right; padding-left: 50%; position: relative; }
-    td:before { content: attr(data-label); position: absolute; left: 0; width: 50%; padding-left: 5px; font-weight: bold; text-align: left; }
-    input[type="number"] { width: 100%; }
+    label, button {
+        display: block;
+        width: 100%;
+    }
+    input[type="number"], input[type="month"], select {
+        width: 100%;
+    }
+    h1 {
+        font-size: 1.5em;
+    }
 }
 </style>
 </head>
 <body>
 <h1>คำนวณค่าแรง นาย Kang</h1>
 
-<label>เลือกเดือน: <input type="month" id="monthSelect"></label>
+<label>📅 เลือกเดือน: <input type="month" id="monthSelect"></label>
 <label>
     งวดเงินเดือน:
     <select id="periodSelect">
@@ -51,7 +109,7 @@ tr.absent { background-color: #ddd; }
         <option value="second">16 - สิ้นเดือน เงินออกวันที่ 5 เดือนถัดไป</option>
     </select>
 </label>
-<button id="pdfBtn">บันทึก PDF ใบลงเวลา</button>
+<button id="pdfBtn">📄 บันทึก PDF ใบลงเวลา</button>
 
 <table id="timeTable">
 <thead>
@@ -178,3 +236,4 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
