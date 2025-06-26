@@ -31,6 +31,7 @@ tr:nth-child(even) {background: #f2f2f2;}
 tr.double-rate { background-color: #ffe0e0; }
 tr.absent { background-color: #ddd; }
 .total-row { background: #d0f0d0; font-weight: bold; }
+.sunday-text { color: red; }
 @media (max-width: 600px) {
     table, thead, tbody, th, td, tr { display: block; }
     td { text-align: right; padding-left: 50%; position: relative; }
@@ -41,7 +42,6 @@ tr.absent { background-color: #ddd; }
 </head>
 <body>
 <h1>คำนวณค่าแรง นาย Kang</h1>
-<p>ฐานเงินเดือน 600 บาท/วัน (8 ชม.), OT 1.5 เท่า, ติ๊ก "2 เท่า" เพื่อคิดชั่วโมงปกติและ OT คูณ 2</p>
 
 <label>เลือกเดือน: <input type="month" id="monthSelect"></label>
 <label>
@@ -51,10 +51,6 @@ tr.absent { background-color: #ddd; }
         <option value="second">16 - สิ้นเดือน เงินออกวันที่ 5 เดือนถัดไป</option>
     </select>
 </label>
-
-<button id="exportBtn">Export ข้อมูล</button>
-<input type="file" id="importFile" style="display:none">
-<button id="importBtn">Import ข้อมูล</button>
 
 <table>
 <thead>
@@ -66,7 +62,7 @@ tr.absent { background-color: #ddd; }
 </tfoot>
 </table>
 
-<div id="result" style="margin-top:20px;"></div>
+<div id="summary" style="margin-top:20px; font-weight:bold;"></div>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
@@ -75,44 +71,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const hourlyWage = dailyWage / hoursPerDay;
     const otRate = 1.5;
     const sundayRate = 2;
+    const ssoFixed = 750;
 
     const table = document.getElementById("workTable");
     const monthSelect = document.getElementById("monthSelect");
     const periodSelect = document.getElementById("periodSelect");
     const totalSum = document.getElementById("totalSum");
-    const result = document.getElementById("result");
-
-    function saveData() {
-        const data = [];
-        for (let row of table.rows) {
-            data.push({
-                date: row.dataset.date,
-                normalHours: row.querySelector(".normal").value,
-                otHours: row.querySelector(".ot").value,
-                isDouble: row.querySelector(".double").checked,
-                isAbsent: row.querySelector(".absent").checked
-            });
-        }
-        const key = `${monthSelect.value}-${periodSelect.value}`;
-        localStorage.setItem(key, JSON.stringify(data));
-    }
-
-    function loadData() {
-        const key = `${monthSelect.value}-${periodSelect.value}`;
-        const saved = localStorage.getItem(key);
-        if (saved) {
-            const data = JSON.parse(saved);
-            data.forEach((d, i) => {
-                if (table.rows[i]) {
-                    table.rows[i].querySelector(".normal").value = d.normalHours;
-                    table.rows[i].querySelector(".ot").value = d.otHours;
-                    table.rows[i].querySelector(".double").checked = d.isDouble;
-                    table.rows[i].querySelector(".absent").checked = d.isAbsent;
-                }
-            });
-        }
-        calculate();
-    }
+    const summary = document.getElementById("summary");
 
     function generateTable(startDay, endDay, month, year) {
         table.innerHTML = "";
@@ -121,10 +86,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const date = new Date(dateStr);
             if (isNaN(date)) continue;
 
+            const isSunday = date.getDay() === 0;
+
             const row = document.createElement("tr");
             row.dataset.date = dateStr;
             row.innerHTML = `
-                <td>${new Date(dateStr).toLocaleDateString("th-TH", { year: "numeric", month: "2-digit", day: "2-digit" })}</td>
+                <td class="${isSunday ? 'sunday-text' : ''}">${new Date(dateStr).toLocaleDateString("th-TH", { year: "numeric", month: "2-digit", day: "2-digit" })}</td>
                 <td><input class="normal" type="number" min="0" max="8" value="8"></td>
                 <td><input class="ot" type="number" min="0" value="2"></td>
                 <td><input class="double" type="checkbox"></td>
@@ -137,6 +104,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function calculate() {
         let total = 0;
+        let workDays = 0, absentDays = 0, doubleDays = 0;
+        let totalNormalPay = 0, totalOT15 = 0, totalOT2 = 0;
+
         for (let row of table.rows) {
             const normal = parseFloat(row.querySelector(".normal").value) || 0;
             const ot = parseFloat(row.querySelector(".ot").value) || 0;
@@ -153,35 +123,33 @@ document.addEventListener("DOMContentLoaded", () => {
             row.className = isAbsent ? "absent" : isDouble ? "double-rate" : "";
 
             total += sum;
+            if (!isAbsent) workDays++;
+            if (isAbsent) absentDays++;
+            if (isDouble) doubleDays++;
+            totalNormalPay += normalPay;
+            if (isDouble) {
+                totalOT2 += ot * hourlyWage * sundayRate;
+            } else {
+                totalOT15 += ot * hourlyWage * otRate;
+            }
         }
-        totalSum.innerText = total.toFixed(2);
-        saveData();
+
+        let sso = 0;
+        if (periodSelect.value === "first") sso = ssoFixed;
+
+        totalSum.innerText = (total - sso).toFixed(2);
+
+        summary.innerHTML = `
+            <p>จำนวนวันทำงาน: ${workDays} วัน</p>
+            <p>จำนวนวันหยุด: ${absentDays} วัน</p>
+            <p>วันที่คิด 2 เท่า: ${doubleDays} วัน</p>
+            <p>ค่าแรงปกติรวม: ${totalNormalPay.toFixed(2)} บาท</p>
+            <p>ค่าแรง OT 1.5 เท่า: ${totalOT15.toFixed(2)} บาท</p>
+            <p>ค่าแรง OT 2 เท่า: ${totalOT2.toFixed(2)} บาท</p>
+            <p>หักประกันสังคม: ${sso.toFixed(2)} บาท</p>
+            <p><strong>รับสุทธิ: ${(total - sso).toFixed(2)} บาท</strong></p>
+        `;
     }
-
-    document.getElementById("exportBtn").onclick = () => {
-        const key = `${monthSelect.value}-${periodSelect.value}`;
-        const data = localStorage.getItem(key);
-        if (data) {
-            const blob = new Blob([data], {type: "application/json"});
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.download = `${key}.json`;
-            link.click();n        }
-    };
-
-    document.getElementById("importBtn").onclick = () => document.getElementById("importFile").click();
-
-    document.getElementById("importFile").onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-            const key = `${monthSelect.value}-${periodSelect.value}`;
-            localStorage.setItem(key, reader.result);
-            loadData();
-        };
-        reader.readAsText(file);
-    };
 
     monthSelect.onchange = periodSelect.onchange = () => {
         const [year, month] = monthSelect.value.split("-").map(Number);
@@ -190,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else {
             generateTable(1, 15, month, year);
         }
-        loadData();
+        calculate();
     };
 
     table.addEventListener("input", calculate);
