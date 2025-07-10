@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>คำนวณค่าแรง นาย Kang</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
@@ -21,7 +21,7 @@ h1 {
     margin-bottom: 20px;
 }
 
-label, select, input[type="month"] {
+label, select, input[type="month"], input[type="number"] {
     margin: 5px 10px 15px 0;
     padding: 6px 10px;
     border-radius: 4px;
@@ -52,6 +52,8 @@ table {
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 15px;
+    table-layout: fixed;
+    word-wrap: break-word;
 }
 
 table th {
@@ -101,7 +103,8 @@ tr.absent { background-color: #ddd; }
 <body>
 <h1>คำนวณค่าแรง นาย Kang</h1>
 
-<label>📅 เลือกเดือน: <input type="month" id="monthSelect"></label>
+<label>💵 ค่าแรงต่อวัน (บาท): <input type="number" id="dailyWageInput" value="600" min="1" /></label>
+<label>📅 เลือกเดือน: <input type="month" id="monthSelect" /></label>
 <label>
     งวดเงินเดือน:
     <select id="periodSelect">
@@ -125,9 +128,7 @@ tr.absent { background-color: #ddd; }
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-    const dailyWage = 600;
     const hoursPerDay = 8;
-    const hourlyWage = dailyWage / hoursPerDay;
     const otRate = 1.5;
     const sundayRate = 2;
     const ssoFixed = 750;
@@ -137,6 +138,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const periodSelect = document.getElementById("periodSelect");
     const totalSum = document.getElementById("totalSum");
     const summary = document.getElementById("summary");
+    const dailyWageInput = document.getElementById("dailyWageInput");
+
+    function getDailyWage() {
+        return parseFloat(dailyWageInput.value) || 0;
+    }
 
     function generateTable(startDay, endDay, month, year) {
         table.innerHTML = "";
@@ -150,11 +156,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const row = document.createElement("tr");
             row.dataset.date = dateStr;
             row.innerHTML = `
-                <td class="${isSunday ? 'sunday-text' : ''}">${new Date(dateStr).toLocaleDateString("th-TH", { year: "numeric", month: "2-digit", day: "2-digit" })}</td>
-                <td><input class="normal" type="number" min="0" max="8" value="8"></td>
-                <td><input class="ot" type="number" min="0" value="2"></td>
-                <td><input class="double" type="checkbox"></td>
-                <td><input class="absent" type="checkbox"></td>
+                <td class="${isSunday ? 'sunday-text' : ''}">${date.toLocaleDateString("th-TH", { year: "numeric", month: "2-digit", day: "2-digit" })}</td>
+                <td><input class="normal" type="number" min="0" max="8" value="8" /></td>
+                <td><input class="ot" type="number" min="0" value="0" /></td>
+                <td><input class="double" type="checkbox" /></td>
+                <td><input class="absent" type="checkbox" /></td>
                 <td class="sumCell">0.00</td>
             `;
             table.appendChild(row);
@@ -162,6 +168,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function calculate() {
+        const dailyWage = getDailyWage();
+        const hourlyWage = dailyWage / hoursPerDay;
+
         let total = 0;
         let workDays = 0, absentDays = 0, doubleDays = 0;
         let totalNormalPay = 0, totalOT15 = 0, totalOT2 = 0;
@@ -182,7 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
             row.className = isAbsent ? "absent" : isDouble ? "double-rate" : "";
 
             total += sum;
-            if (!isAbsent && !isDouble) workDays++;
+            if (!isAbsent && !isDouble && normal > 0) workDays++;
             if (isAbsent) absentDays++;
             if (isDouble) doubleDays++;
             totalNormalPay += normalPay;
@@ -212,6 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     monthSelect.onchange = periodSelect.onchange = () => {
+        if (!monthSelect.value) return;
         const [year, month] = monthSelect.value.split("-").map(Number);
         if (periodSelect.value === "second") {
             generateTable(16, new Date(year, month, 0).getDate(), month, year);
@@ -223,12 +233,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     table.addEventListener("input", calculate);
     table.addEventListener("change", calculate);
+    dailyWageInput.addEventListener("input", calculate);
 
     document.getElementById("pdfBtn").onclick = () => {
         const element = document.getElementById("timeTable");
-        html2pdf().from(element).save("TimeSheet_Kang.pdf");
+        html2pdf().set({
+            margin: 10,
+            filename: 'TimeSheet_Kang.pdf',
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(element).save();
     };
 
+    // ตั้งค่าเดือนปัจจุบัน และสร้างตารางครั้งแรก
     const today = new Date();
     monthSelect.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     monthSelect.dispatchEvent(new Event("change"));
@@ -236,4 +254,5 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 </body>
 </html>
+
 
